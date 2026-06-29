@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "vlim-tools",
+  "description": "Voathnak Lim's personal Claude Code tools and extensions.",
+  "owner": {
+    "name": "Voathnak Lim",
+    "email": "voathnak.lim@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "statusline",
+      "description": "Two-line Claude Code footer: version, model, reasoning effort, 5h/weekly usage limits with reset countdown, working directory, context %, and cumulative session token counts.",
+      "category": "productivity",
+      "source": "./plugins/statusline"
+    }
+  ]
+}
