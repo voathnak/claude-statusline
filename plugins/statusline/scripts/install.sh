@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+#
+# Installer for the Claude Code "working directory + usage limits" status line.
+#
+# Installs ./statusline.sh to ~/.claude/statusline.sh and adds the matching
+# `statusLine` block to ~/.claude/settings.json.
+#
+# Versioning: refuses to downgrade. If the already-installed script is a newer
+# semver than the one in this bundle, it is left untouched (override with --force).
+#
+# Usage:
+#   ./install.sh           # install or upgrade
+#   ./install.sh --force   # install even if it would be a downgrade / re-install
+#
+set -eu
+
+FORCE=0
+[ "${1:-}" = "--force" ] && FORCE=1
+
+TS=$(date +%Y%m%d-%H%M%S)
+SRC_DIR=$(cd "$(dirname "$0")" && pwd)
+SRC_SCRIPT="$SRC_DIR/statusline.sh"
+DEST_DIR="$HOME/.claude"
+DEST_SCRIPT="$DEST_DIR/statusline.sh"
+SETTINGS="$DEST_DIR/settings.json"
+
+err() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
+
+[ -f "$SRC_SCRIPT" ] || err "statusline.sh not found next to this installer."
+
+read_version() { sed -n 's/^# version: *//p' "$1" 2>/dev/null | head -1; }
+
+# Returns 0/1/2 for newer/equal/older of $1 vs $2 (semver major.minor.patch).
+# Echoes: "newer" | "equal" | "older" | "unknown"
+semver_cmp() {
+  a="$1"; b="$2"
+  case "$a" in ''|*[!0-9.]*) echo unknown; return;; esac
+  case "$b" in ''|*[!0-9.]*) echo unknown; return;; esac
+  IFS=. read -r a1 a2 a3 <<EOF
+$a
+EOF
+  IFS=. read -r b1 b2 b3 <<EOF
+$b
+EOF
+  a1=${a1:-0}; a2=${a2:-0}; a3=${a3:-0}
+  b1=${b1:-0}; b2=${b2:-0}; b3=${b3:-0}
+  for pair in "$a1 $b1" "$a2 $b2" "$a3 $b3"; do
+    set -- $pair
+    if [ "$1" -gt "$2" ]; then echo newer; return; fi
+    if [ "$1" -lt "$2" ]; then echo older; return; fi
+  done
+  echo equal
+}
+
+BUNDLE_VER=$(read_version "$SRC_SCRIPT")
+[ -n "$BUNDLE_VER" ] || err "bundle statusline.sh has no '# version:' line."
+
+mkdir -p "$DEST_DIR"
+
+# --- Decide whether to (over)write the script ---------------------------------
+DO_INSTALL=1
+if [ -f "$DEST_SCRIPT" ]; then
+  INSTALLED_VER=$(read_version "$DEST_SCRIPT")
+  REL=$(semver_cmp "$BUNDLE_VER" "${INSTALLED_VER:-}")
+  case "$REL" in
+    newer)   echo "Upgrading status line: v${INSTALLED_VER} -> v${BUNDLE_VER}" ;;
+    equal)   if [ "$FORCE" -eq 1 ]; then echo "Reinstalling v${BUNDLE_VER} (--force)";
+             else echo "Already up to date (v${BUNDLE_VER}); skipping script."; DO_INSTALL=0; fi ;;
+    older)   if [ "$FORCE" -eq 1 ]; then echo "Downgrading v${INSTALLED_VER} -> v${BUNDLE_VER} (--force)";
+             else echo "Installed v${INSTALLED_VER} is newer than bundle v${BUNDLE_VER} — not downgrading. Use --force to override."; DO_INSTALL=0; fi ;;
+    unknown) echo "Installed version unrecognized; replacing with v${BUNDLE_VER}." ;;
+  esac
+else
+  echo "Installing status line v${BUNDLE_VER} (fresh)."
+fi
+
+if [ "$DO_INSTALL" -eq 1 ]; then
+  if [ -f "$DEST_SCRIPT" ]; then
+    BAK="$DEST_SCRIPT.bak-${INSTALLED_VER:-unknown}-${TS}"
+    cp "$DEST_SCRIPT" "$BAK"
+    echo "  backed up existing script -> $BAK"
+  fi
+  cp "$SRC_SCRIPT" "$DEST_SCRIPT"
+  chmod +x "$DEST_SCRIPT"
+  echo "  installed -> $DEST_SCRIPT"
+fi
+
+# --- Merge the statusLine block into settings.json ----------------------------
+PY=$(command -v python3 || command -v python || command -v python2 || true)
+if [ -z "$PY" ]; then
+  cat <<MSG
+NOTE: no Python interpreter found. Add this to $SETTINGS manually:
+  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }
+Also: without python3, the status line shows only the path (no model/limits).
+MSG
+else
+  SETTINGS="$SETTINGS" SETTINGS_BAK="$SETTINGS.bak-$TS" "$PY" - <<'PYEOF'
+import json, os, shutil
+p = os.environ["SETTINGS"]
+bak = os.environ["SETTINGS_BAK"]
+existed = os.path.exists(p)
+try:
+    if existed:
+        with open(p) as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    else:
+        data = {}
+except (IOError, OSError, ValueError):
+    data = {}
+desired = {"type": "command", "command": "~/.claude/statusline.sh"}
+if data.get("statusLine") == desired:
+    print("settings.json already configured; no change.")
+else:
+    if existed:
+        shutil.copyfile(p, bak)            # back up only when about to change
+        print("Backed up settings -> " + bak)
+    data["statusLine"] = desired
+    with open(p, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    print("Wrote statusLine block to settings.json.")
+PYEOF
+fi
+
+echo "Done. Open a new Claude Code session (or reload) to see the footer."
+echo "Tip: 'python3' enables the full footer (model + usage limits); without it you get the path only."

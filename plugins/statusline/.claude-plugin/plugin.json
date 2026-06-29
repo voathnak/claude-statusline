@@ -1,0 +1,17 @@
+{
+  "name": "statusline",
+  "version": "1.3.0",
+  "description": "Two-line Claude Code footer: version, model, reasoning effort, 5h/weekly usage limits with reset countdown, working directory, context %, and cumulative session token counts.",
+  "author": {
+    "name": "Voathnak Lim",
+    "email": "voathnak.lim@gmail.com"
+  },
+  "keywords": [
+    "statusline",
+    "footer",
+    "usage-limits",
+    "context",
+    "tokens"
+  ],
+  "license": "MIT"
+}
