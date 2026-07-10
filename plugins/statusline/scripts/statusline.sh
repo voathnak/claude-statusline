@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# version: 1.3.0
+# version: 1.4.0
 # Claude Code status line (two rows).
 # Line 1: v<ver> · <model> · ⚙ <effort> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
 # Line 2: <N>% ctx · ↑ <sent tokens> · ↓ <received tokens>
@@ -12,7 +12,18 @@
 # Line 2 token totals are CUMULATIVE for the session, summed from the transcript
 # JSONL (the payload's context_window.* are current-context only since CC 2.1.132).
 # ↑ sent = input + cache_creation + cache_read ; ↓ received = output.
+# The transcript writes one line PER ASSISTANT CONTENT BLOCK, each repeating the
+# same message.id and usage — so totals are deduplicated by message.id (last
+# line wins) or a single API call would be counted once per block.
 # Claude Code pipes session JSON to this script on stdin.
+#
+# Side effect: each render also publishes the authoritative context data to
+# $STATUSLINE_CTX_DIR (default ~/.claude/statusline-ctx)/<session_id>.json —
+# {"v":1,"ts":...,"used_percentage":N,"context_window_size":N,
+#  "transcript_path":"...","transcript_size":N} — so tools that only get hook
+# payloads (which carry no context_window.*), like claude-context-keeper, can
+# show the exact same percentage. Atomic tmp+rename; files older than 7 days
+# are pruned on write; any failure is swallowed (the footer must never break).
 #
 # Parsing is done by an inline Python block (works on both Python 3 and 2).
 # If no Python interpreter is found, falls back to a sed path-only line.
@@ -87,10 +98,48 @@ ctx = cw.get("used_percentage")
 if ctx is not None:
     line2.append("%d%% ctx" % ctx)
 
-# Sum cumulative tokens from the session transcript.
 tp = d.get("transcript_path")
+
+# Publish the authoritative context data as a per-session sidecar (see header).
+try:
+    sid = d.get("session_id") or ""
+    win = cw.get("context_window_size")
+    if ctx is not None and win and sid and all(c.isalnum() or c in "-_" for c in sid):
+        sc_dir = os.environ.get("STATUSLINE_CTX_DIR") or os.path.join(
+            os.path.expanduser("~"), ".claude", "statusline-ctx")
+        try:
+            os.makedirs(sc_dir)
+        except Exception:
+            pass
+        try:
+            tsize = os.stat(tp).st_size if tp else 0
+        except Exception:
+            tsize = 0
+        rec = {"v": 1, "ts": int(time.time()), "used_percentage": ctx,
+               "context_window_size": win,
+               "transcript_path": tp or "", "transcript_size": tsize}
+        tmp = os.path.join(sc_dir, "%s.json.tmp.%d" % (sid, os.getpid()))
+        fh = open(tmp, "w")
+        try:
+            fh.write(json.dumps(rec))
+        finally:
+            fh.close()
+        os.rename(tmp, os.path.join(sc_dir, sid + ".json"))
+        now = time.time()
+        for fn in os.listdir(sc_dir):
+            try:
+                fp = os.path.join(sc_dir, fn)
+                if now - os.stat(fp).st_mtime > 7 * 86400:
+                    os.unlink(fp)
+            except Exception:
+                pass
+except Exception:
+    pass
+
+# Sum cumulative tokens from the session transcript, one entry per message.id
+# (multi-block replies repeat the same usage on every line; last line wins).
 if tp and os.path.exists(tp):
-    sent = recv = 0
+    per = {}
     try:
         f = open(tp)
         try:
@@ -101,17 +150,21 @@ if tp and os.path.exists(tp):
                     o = json.loads(line)
                 except Exception:
                     continue
-                u = (o.get("message") or {}).get("usage")
+                m = o.get("message") or {}
+                u = m.get("usage")
                 if not u:
                     continue
-                sent += (u.get("input_tokens", 0)
-                         + u.get("cache_creation_input_tokens", 0)
-                         + u.get("cache_read_input_tokens", 0))
-                recv += u.get("output_tokens", 0)
+                per[m.get("id") or o.get("uuid")] = (
+                    u.get("input_tokens", 0)
+                    + u.get("cache_creation_input_tokens", 0)
+                    + u.get("cache_read_input_tokens", 0),
+                    u.get("output_tokens", 0))
         finally:
             f.close()
     except Exception:
-        sent = recv = 0
+        per = {}
+    sent = sum(v[0] for v in per.values())
+    recv = sum(v[1] for v in per.values())
     if sent or recv:
         line2.append("↑ " + human(sent))
         line2.append("↓ " + human(recv))

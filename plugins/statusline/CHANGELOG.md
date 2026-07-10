@@ -4,6 +4,21 @@ All notable changes to the `statusline` plugin.
 Versions follow semver; the authoritative number lives in the `# version:` line
 at the top of `scripts/statusline.sh` and is mirrored in `plugin.json`.
 
+## 1.4.0
+- **Fixed cumulative ↑/↓ token totals over-counting.** The transcript JSONL
+  writes one line per assistant content block, each repeating the same
+  `message.id` and `usage` object; summing per line counted a single API call
+  once per block (measured ~2–2.6× inflation on a real session). Totals are now
+  deduplicated by `message.id` (last line wins).
+- **New: per-session context sidecar for tool interop.** Each render writes
+  `~/.claude/statusline-ctx/<session_id>.json` (override dir with
+  `STATUSLINE_CTX_DIR`) containing the authoritative `used_percentage`,
+  `context_window_size`, `transcript_path`, `transcript_size`, and a timestamp
+  (schema `"v":1`). Hooks don't receive `context_window.*`, so tools like
+  claude-context-keeper (≥1.3.0) read this to show the exact same percentage
+  as the footer. Atomic tmp+rename write; sidecars older than 7 days are pruned
+  on write; all failures are swallowed so the footer can never break.
+
 ## 1.3.0
 - **Packaged as a Claude Code marketplace plugin** (`vlim-tools` marketplace).
   The footer logic is unchanged from 1.2.0; this release is the plugin wrapper.
