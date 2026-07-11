@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "vlim-tools",
-  "description": "Voathnak Lim's personal Claude Code tools and extensions.",
+  "name": "vk-statusline",
+  "description": "Voathnak Lim's Claude Code statusline footer plugin.",
   "owner": {
     "name": "Voathnak Lim",
     "email": "voathnak.lim@gmail.com"

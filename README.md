@@ -1,12 +1,16 @@
-# vlim-tools
+# vk-statusline
 
-A personal [Claude Code](https://code.claude.com) plugin marketplace.
+A personal [Claude Code](https://code.claude.com) plugin marketplace with a single
+plugin. (Each of my plugin repos ships its own uniquely-named marketplace —
+marketplace names are global in Claude Code, so two repos must never share one;
+see also [claude-context-keeper](../claude-context-keeper), marketplace
+`vk-context-keeper`.)
 
 ## Plugins
 
 | Plugin       | Version | Description                                                                 |
 | :----------- | :------ | :-------------------------------------------------------------------------- |
-| `statusline` | 1.3.0   | Two-line footer: model, effort, 5h/weekly usage limits, cwd, context, tokens. |
+| `statusline` | 1.4.1   | Two-line footer: model, effort, 5h/weekly usage limits, cwd, context, tokens. |
 
 ## Add this marketplace
 
@@ -17,7 +21,7 @@ A personal [Claude Code](https://code.claude.com) plugin marketplace.
 Then install a plugin:
 
 ```
-/plugin install statusline@vlim-tools
+/plugin install statusline@vk-statusline
 ```
 
 After installing `statusline`, run `/statusline:install` once to wire the footer

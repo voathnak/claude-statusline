@@ -44,6 +44,11 @@ $b
 EOF
   a1=${a1:-0}; a2=${a2:-0}; a3=${a3:-0}
   b1=${b1:-0}; b2=${b2:-0}; b3=${b3:-0}
+  # A 4th component ends up appended to $a3/$b3 as "0.1" — not an integer, so
+  # `[ -gt ]` would abort the whole installer under `set -e`. Treat as unknown.
+  for c in "$a1" "$a2" "$a3" "$b1" "$b2" "$b3"; do
+    case "$c" in ''|*[!0-9]*) echo unknown; return;; esac
+  done
   for pair in "$a1 $b1" "$a2 $b2" "$a3 $b3"; do
     set -- $pair
     if [ "$1" -gt "$2" ]; then echo newer; return; fi
@@ -95,19 +100,28 @@ Also: without python3, the status line shows only the path (no model/limits).
 MSG
 else
   SETTINGS="$SETTINGS" SETTINGS_BAK="$SETTINGS.bak-$TS" "$PY" - <<'PYEOF'
-import json, os, shutil
+import json, os, shutil, sys
 p = os.environ["SETTINGS"]
 bak = os.environ["SETTINGS_BAK"]
 existed = os.path.exists(p)
-try:
-    if existed:
+if existed:
+    # An existing-but-unreadable settings.json must ABORT, not be replaced with
+    # a minimal {statusLine} object — that would silently drop the user's
+    # hooks, permissions and env.
+    try:
         with open(p) as f:
             data = json.load(f)
-        if not isinstance(data, dict):
-            data = {}
-    else:
-        data = {}
-except (IOError, OSError, ValueError):
+    except (IOError, OSError, ValueError) as e:
+        sys.stderr.write(
+            "ERROR: %s exists but is not valid JSON (%s).\n"
+            "Fix it (or move it aside) and re-run, or add this block manually:\n"
+            '  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }\n'
+            % (p, e))
+        sys.exit(1)
+    if not isinstance(data, dict):
+        sys.stderr.write("ERROR: %s is valid JSON but not an object; not touching it.\n" % p)
+        sys.exit(1)
+else:
     data = {}
 desired = {"type": "command", "command": "~/.claude/statusline.sh"}
 if data.get("statusLine") == desired:
