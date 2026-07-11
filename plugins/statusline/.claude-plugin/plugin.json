@@ -1,6 +1,6 @@
 {
   "name": "statusline",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Two-line Claude Code footer: version, model, reasoning effort, 5h/weekly usage limits with reset countdown, working directory, context %, and cumulative session token counts.",
   "author": {
     "name": "Voathnak Lim",

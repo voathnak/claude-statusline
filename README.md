@@ -10,7 +10,7 @@ see also [claude-context-keeper](../claude-context-keeper), marketplace
 
 | Plugin       | Version | Description                                                                 |
 | :----------- | :------ | :-------------------------------------------------------------------------- |
-| `statusline` | 1.4.1   | Two-line footer: model, effort, 5h/weekly usage limits, cwd, context, tokens. |
+| `statusline` | 1.5.0   | Two-line footer: model, effort, account email, 5h/weekly usage limits, cwd, context, tokens. |
 
 ## Add this marketplace
 

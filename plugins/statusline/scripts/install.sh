@@ -95,7 +95,7 @@ PY=$(command -v python3 || command -v python || command -v python2 || true)
 if [ -z "$PY" ]; then
   cat <<MSG
 NOTE: no Python interpreter found. Add this to $SETTINGS manually:
-  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }
+  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 5 }
 Also: without python3, the status line shows only the path (no model/limits).
 MSG
 else
@@ -115,7 +115,7 @@ if existed:
         sys.stderr.write(
             "ERROR: %s exists but is not valid JSON (%s).\n"
             "Fix it (or move it aside) and re-run, or add this block manually:\n"
-            '  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }\n'
+            '  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 5 }\n'
             % (p, e))
         sys.exit(1)
     if not isinstance(data, dict):
@@ -123,8 +123,15 @@ if existed:
         sys.exit(1)
 else:
     data = {}
-desired = {"type": "command", "command": "~/.claude/statusline.sh"}
-if data.get("statusLine") == desired:
+# refreshInterval re-runs the script every N seconds even while the session is
+# idle (otherwise renders are event-driven only and the countdown/account
+# segments go stale). Preserve a user-customized value on upgrade.
+desired = {"type": "command", "command": "~/.claude/statusline.sh",
+           "refreshInterval": 5}
+current = data.get("statusLine")
+if isinstance(current, dict) and isinstance(current.get("refreshInterval"), (int, float)):
+    desired["refreshInterval"] = current["refreshInterval"]
+if current == desired:
     print("settings.json already configured; no change.")
 else:
     if existed:
