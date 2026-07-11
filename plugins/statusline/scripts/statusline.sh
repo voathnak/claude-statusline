@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# version: 1.4.1
+# version: 1.5.0
 # Claude Code status line (two rows).
-# Line 1: v<ver> · <model> · ⚙ <effort> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
+# Line 1: v<ver> · <model> · ⚙ <effort> · 👤 <account email> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
 # Line 2: <N>% ctx · ↑ <sent tokens> · ↓ <received tokens>
 # (No $ cost: cost.total_cost_usd is an API-list-price estimate, not the actual
 #  bill on a team/subscription plan, so it is intentionally omitted.)
@@ -64,6 +64,28 @@ if model:
 effort = (d.get("effort") or {}).get("level")
 if effort:
     parts.append("⚙ " + effort)
+
+# Active account (👤) — placed right before the 5h/weekly limits, which belong
+# to this account. cswap (claude-swap) users switch accounts often and forget
+# which one is live; the stdin payload carries no account info, but the email
+# of the active account lives in ~/.claude.json (oauthAccount.emailAddress),
+# which cswap swaps together with the OAuth tokens. Missing/corrupt file ->
+# segment omitted. Disable with STATUSLINE_SHOW_ACCOUNT=0. (macOS: a cswap
+# switch shows up once the ~30s Keychain credential cache expires.)
+# NB: this whole Python program is a single-quoted shell string — no
+# apostrophes anywhere in it, comments included.
+if os.environ.get("STATUSLINE_SHOW_ACCOUNT", "1") != "0":
+    try:
+        cfg_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~")
+        cf = open(os.path.join(cfg_dir, ".claude.json"))
+        try:
+            email = (json.load(cf).get("oauthAccount") or {}).get("emailAddress")
+        finally:
+            cf.close()
+        if email:
+            parts.append("👤 " + email)
+    except Exception:
+        pass
 
 rl = d.get("rate_limits") or {}
 

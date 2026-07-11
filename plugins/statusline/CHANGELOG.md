@@ -4,6 +4,22 @@ All notable changes to the `statusline` plugin.
 Versions follow semver; the authoritative number lives in the `# version:` line
 at the top of `scripts/statusline.sh` and is mirrored in `plugin.json`.
 
+## 1.5.0
+- **New: active account email on line 1** (`👤 you@example.com`, placed right
+  before the 5h/weekly limits, which belong to that account). Read from
+  `~/.claude.json` → `oauthAccount.emailAddress` (honors `CLAUDE_CONFIG_DIR`),
+  which account switchers like [cswap](https://github.com/realiti4/claude-swap)
+  swap together with the OAuth tokens — so after a switch the footer shows which
+  account you're on. Missing/corrupt file just omits the segment; disable with
+  `STATUSLINE_SHOW_ACCOUNT=0`. Note: on macOS a cswap switch appears once
+  Claude Code's ~30s Keychain credential cache expires.
+- **New: 5-second idle refresh.** The installer now writes
+  `"refreshInterval": 5` into the `statusLine` block. Without it, renders are
+  event-driven only (new assistant message, `/compact`, mode changes) and the
+  ⏳ countdown / 👤 account segments go stale while the session sits idle.
+  A user-customized `refreshInterval` already present in `settings.json` is
+  preserved on upgrade.
+
 ## 1.4.1
 - **Marketplace renamed `vlim-tools` → `vk-statusline`.** The claude-context-keeper
   repo declared a marketplace with the same `vlim-tools` name; Claude Code keys

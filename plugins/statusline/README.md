@@ -1,15 +1,22 @@
 # statusline — Claude Code footer
 
-A two-line Claude Code status bar showing the active model, reasoning effort, your
-**5-hour** and **weekly** usage-limit remaining percentages (with a reset
-countdown), the working directory, context usage, and cumulative session tokens.
+A two-line Claude Code status bar showing the active model, reasoning effort, the
+active **account email**, your **5-hour** and **weekly** usage-limit remaining
+percentages (with a reset countdown), the working directory, context usage, and
+cumulative session tokens.
 
 ```
-v1.4.0 · Opus 4.8 (1M ctx) · ⚙ medium · 5h: 92% (⏳ 4h28m) · wk: 98% · 📁 ~/project
+v1.5.0 · Opus 4.8 (1M ctx) · ⚙ medium · 👤 you@example.com · 5h: 92% (⏳ 4h28m) · wk: 98% · 📁 ~/project
 23% ctx · ↑ 156.3k · ↓ 8.7k
 ```
 
-- **Line 1:** version · model · `⚙ effort` · 5h limit · weekly limit · `📁 cwd`
+- **Line 1:** version · model · `⚙ effort` · `👤 account` · 5h limit · weekly limit · `📁 cwd`
+- The `👤 account` segment reads `oauthAccount.emailAddress` from
+  `~/.claude.json` (honors `CLAUDE_CONFIG_DIR`) — with a multi-account switcher
+  like [cswap](https://github.com/realiti4/claude-swap) it shows which account
+  is currently live, next to that account's usage limits. Omitted if the file
+  is missing/unreadable; disable with `STATUSLINE_SHOW_ACCOUNT=0`. On macOS a
+  cswap switch shows up once Claude Code's ~30s Keychain cache expires.
 - **Line 2:** context % · `↑` input tokens · `↓` output tokens (cumulative,
   deduplicated by `message.id` — the transcript repeats the same usage on every
   content-block line of a reply)
@@ -28,8 +35,15 @@ This plugin ships the footer script plus an installer. Because a plugin's bundle
 That runs the bundled `scripts/install.sh`, which:
 
 - copies `scripts/statusline.sh` → `~/.claude/statusline.sh`, and
-- merges `"statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }`
-  into `~/.claude/settings.json`.
+- merges `"statusLine": { "type": "command", "command": "~/.claude/statusline.sh",
+  "refreshInterval": 5 }` into `~/.claude/settings.json`.
+
+`refreshInterval` re-runs the footer every 5 seconds even while the session is
+idle — without it Claude Code only re-renders on events (new assistant message,
+`/compact`, mode changes), so the ⏳ countdown and 👤 account segments would go
+stale between turns. Tune the number in `settings.json` if you like (min `1`;
+each run re-reads the transcript, so very low values cost more on long
+sessions) — the installer preserves your custom value on upgrade.
 
 Both files are backed up first (`*.bak-<timestamp>`). The installer is
 semver-aware and **will not downgrade** — pass `--force` to override. Open a new
