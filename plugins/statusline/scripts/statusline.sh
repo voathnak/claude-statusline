@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# version: 1.4.0
+# version: 1.4.1
 # Claude Code status line (two rows).
 # Line 1: v<ver> · <model> · ⚙ <effort> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
 # Line 2: <N>% ctx · ↑ <sent tokens> · ↓ <received tokens>
@@ -71,7 +71,9 @@ fh = rl.get("five_hour") or {}
 if "used_percentage" in fh:
     seg = "5h: %d%%" % (100 - fh["used_percentage"])
     ra = fh.get("resets_at")
-    if ra:
+    # Guard the type: a non-numeric resets_at (e.g. an ISO string in a future
+    # Claude Code version) must degrade to "no countdown", not kill the footer.
+    if isinstance(ra, (int, float)):
         secs = int(ra - time.time())
         if secs > 0:
             seg += " (⏳ %dh%dm)" % (secs // 3600, (secs % 3600) // 60)
@@ -119,11 +121,11 @@ try:
                "context_window_size": win,
                "transcript_path": tp or "", "transcript_size": tsize}
         tmp = os.path.join(sc_dir, "%s.json.tmp.%d" % (sid, os.getpid()))
-        fh = open(tmp, "w")
+        sf = open(tmp, "w")
         try:
-            fh.write(json.dumps(rec))
+            sf.write(json.dumps(rec))
         finally:
-            fh.close()
+            sf.close()
         os.rename(tmp, os.path.join(sc_dir, sid + ".json"))
         now = time.time()
         for fn in os.listdir(sc_dir):

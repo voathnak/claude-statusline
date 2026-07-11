@@ -4,6 +4,24 @@ All notable changes to the `statusline` plugin.
 Versions follow semver; the authoritative number lives in the `# version:` line
 at the top of `scripts/statusline.sh` and is mirrored in `plugin.json`.
 
+## 1.4.1
+- **Marketplace renamed `vlim-tools` → `vk-statusline`.** The claude-context-keeper
+  repo declared a marketplace with the same `vlim-tools` name; Claude Code keys
+  marketplaces by name, so adding one repo broke the other's plugin. Each repo
+  now ships its own uniquely-named marketplace. Re-add with
+  `/plugin marketplace add <repo>` and install `statusline@vk-statusline`.
+- **Fixed: a non-numeric `rate_limits.*.resets_at` could blank the whole footer.**
+  The countdown arithmetic assumed an epoch number with no guard; a string value
+  (e.g. ISO timestamp in a future Claude Code version) raised and killed the
+  script. Now type-checked — the countdown is simply omitted.
+- **Fixed: `install.sh` no longer clobbers an unparseable `settings.json`.**
+  Previously a corrupt (or non-object) settings file was silently replaced with
+  a minimal `{statusLine}` object, dropping hooks/permissions/env (a backup was
+  taken, but still). It now aborts with an error and leaves the file untouched.
+- `install.sh`: version compare no longer aborts the installer (under `set -e`)
+  on a non-3-part version string like `1.4.0.1` — treated as unrecognized.
+- Internal: renamed a shadowed variable in the sidecar write path.
+
 ## 1.4.0
 - **Fixed cumulative ↑/↓ token totals over-counting.** The transcript JSONL
   writes one line per assistant content block, each repeating the same
