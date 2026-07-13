@@ -11,11 +11,23 @@
 # Usage:
 #   ./install.sh           # install or upgrade
 #   ./install.sh --force   # install even if it would be a downgrade / re-install
+#   ./install.sh --quiet   # errors only (used by the plugin's SessionStart
+#                          # auto-update hook — must stay silent on success)
 #
 set -eu
 
 FORCE=0
-[ "${1:-}" = "--force" ] && FORCE=1
+QUIET=0
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    --quiet) QUIET=1 ;;
+    *) printf 'ERROR: unknown option: %s\n' "$arg" >&2; exit 1 ;;
+  esac
+done
+
+# Informational output; silenced by --quiet (errors still reach stderr).
+say() { [ "$QUIET" -eq 1 ] || printf '%s\n' "$1"; }
 
 TS=$(date +%Y%m%d-%H%M%S)
 SRC_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -68,39 +80,41 @@ if [ -f "$DEST_SCRIPT" ]; then
   INSTALLED_VER=$(read_version "$DEST_SCRIPT")
   REL=$(semver_cmp "$BUNDLE_VER" "${INSTALLED_VER:-}")
   case "$REL" in
-    newer)   echo "Upgrading status line: v${INSTALLED_VER} -> v${BUNDLE_VER}" ;;
-    equal)   if [ "$FORCE" -eq 1 ]; then echo "Reinstalling v${BUNDLE_VER} (--force)";
-             else echo "Already up to date (v${BUNDLE_VER}); skipping script."; DO_INSTALL=0; fi ;;
-    older)   if [ "$FORCE" -eq 1 ]; then echo "Downgrading v${INSTALLED_VER} -> v${BUNDLE_VER} (--force)";
-             else echo "Installed v${INSTALLED_VER} is newer than bundle v${BUNDLE_VER} — not downgrading. Use --force to override."; DO_INSTALL=0; fi ;;
-    unknown) echo "Installed version unrecognized; replacing with v${BUNDLE_VER}." ;;
+    newer)   say "Upgrading status line: v${INSTALLED_VER} -> v${BUNDLE_VER}" ;;
+    equal)   if [ "$FORCE" -eq 1 ]; then say "Reinstalling v${BUNDLE_VER} (--force)";
+             else say "Already up to date (v${BUNDLE_VER}); skipping script."; DO_INSTALL=0; fi ;;
+    older)   if [ "$FORCE" -eq 1 ]; then say "Downgrading v${INSTALLED_VER} -> v${BUNDLE_VER} (--force)";
+             else say "Installed v${INSTALLED_VER} is newer than bundle v${BUNDLE_VER} — not downgrading. Use --force to override."; DO_INSTALL=0; fi ;;
+    unknown) say "Installed version unrecognized; replacing with v${BUNDLE_VER}." ;;
   esac
 else
-  echo "Installing status line v${BUNDLE_VER} (fresh)."
+  say "Installing status line v${BUNDLE_VER} (fresh)."
 fi
 
 if [ "$DO_INSTALL" -eq 1 ]; then
   if [ -f "$DEST_SCRIPT" ]; then
     BAK="$DEST_SCRIPT.bak-${INSTALLED_VER:-unknown}-${TS}"
     cp "$DEST_SCRIPT" "$BAK"
-    echo "  backed up existing script -> $BAK"
+    say "  backed up existing script -> $BAK"
   fi
   cp "$SRC_SCRIPT" "$DEST_SCRIPT"
   chmod +x "$DEST_SCRIPT"
-  echo "  installed -> $DEST_SCRIPT"
+  say "  installed -> $DEST_SCRIPT"
 fi
 
 # --- Merge the statusLine block into settings.json ----------------------------
 PY=$(command -v python3 || command -v python || command -v python2 || true)
 if [ -z "$PY" ]; then
-  cat <<MSG
-NOTE: no Python interpreter found. Add this to $SETTINGS manually:
+  say 'NOTE: no Python interpreter found. Add this to '"$SETTINGS"' manually:
   "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 5 }
-Also: without python3, the status line shows only the path (no model/limits).
-MSG
+Also: without python3, the status line shows only the path (no model/limits).'
 else
-  SETTINGS="$SETTINGS" SETTINGS_BAK="$SETTINGS.bak-$TS" "$PY" - <<'PYEOF'
+  SETTINGS="$SETTINGS" SETTINGS_BAK="$SETTINGS.bak-$TS" SL_QUIET="$QUIET" "$PY" - <<'PYEOF'
 import json, os, shutil, sys
+
+def say(msg):
+    if os.environ.get("SL_QUIET") != "1":
+        print(msg)
 p = os.environ["SETTINGS"]
 bak = os.environ["SETTINGS_BAK"]
 existed = os.path.exists(p)
@@ -132,18 +146,18 @@ current = data.get("statusLine")
 if isinstance(current, dict) and isinstance(current.get("refreshInterval"), (int, float)):
     desired["refreshInterval"] = current["refreshInterval"]
 if current == desired:
-    print("settings.json already configured; no change.")
+    say("settings.json already configured; no change.")
 else:
     if existed:
         shutil.copyfile(p, bak)            # back up only when about to change
-        print("Backed up settings -> " + bak)
+        say("Backed up settings -> " + bak)
     data["statusLine"] = desired
     with open(p, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
-    print("Wrote statusLine block to settings.json.")
+    say("Wrote statusLine block to settings.json.")
 PYEOF
 fi
 
-echo "Done. Open a new Claude Code session (or reload) to see the footer."
-echo "Tip: 'python3' enables the full footer (model + usage limits); without it you get the path only."
+say "Done. Open a new Claude Code session (or reload) to see the footer."
+say "Tip: 'python3' enables the full footer (model + usage limits); without it you get the path only."

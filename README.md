@@ -10,7 +10,7 @@ see also [claude-context-keeper](../claude-context-keeper), marketplace
 
 | Plugin       | Version | Description                                                                 |
 | :----------- | :------ | :-------------------------------------------------------------------------- |
-| `statusline` | 1.5.0   | Two-line footer: model, effort, account email, 5h/weekly usage limits, cwd, context, tokens. |
+| `statusline` | 1.6.0   | Two-line footer: model, effort, account email, 5h/weekly usage limits, cwd, context, tokens. Self-deploys on plugin update. |
 
 ## Add this marketplace
 
@@ -37,6 +37,7 @@ plugins/
     .claude-plugin/plugin.json    # plugin manifest (version source mirror)
     scripts/statusline.sh         # the footer script (# version: is source of truth)
     scripts/install.sh            # semver-aware installer
+    hooks/hooks.json              # SessionStart auto-deploy (install.sh --quiet)
     commands/install.md           # /statusline:install
     README.md
     CHANGELOG.md
