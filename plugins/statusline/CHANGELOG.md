@@ -4,6 +4,22 @@ All notable changes to the `statusline` plugin.
 Versions follow semver; the authoritative number lives in the `# version:` line
 at the top of `scripts/statusline.sh` and is mirrored in `plugin.json`.
 
+## 1.6.0
+- **New: self-deploying footer (auto-update).** A `SessionStart` hook now runs
+  the bundled installer silently (`install.sh --quiet`) on every session start:
+  when the plugin has been updated to a newer version, `~/.claude/statusline.sh`
+  is upgraded automatically — no more remembering `/statusline:install` after an
+  update. The installer is already semver-aware (no-op when current, never
+  downgrades, backs up before overwriting), and the hook is `suppressOutput` +
+  `|| true`, so it can never inject context or break session startup.
+  For fully hands-off updates, also enable auto-update on the `vk-statusline`
+  marketplace (`/plugin` → Marketplaces → Enable auto-update) — Claude Code then
+  pulls new plugin versions itself, and this hook deploys them.
+  `/statusline:install` is still needed ONCE after first install (a plugin
+  cannot set the main `statusLine` block in user settings).
+- `install.sh`: new `--quiet` flag (errors only); options can now be combined
+  and are validated (unknown options abort).
+
 ## 1.5.0
 - **New: active account email on line 1** (`👤 you@example.com`, placed right
   before the 5h/weekly limits, which belong to that account). Read from

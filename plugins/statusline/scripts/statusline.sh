@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# version: 1.5.0
+# version: 1.6.0
 # Claude Code status line (two rows).
 # Line 1: v<ver> · <model> · ⚙ <effort> · 👤 <account email> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
 # Line 2: <N>% ctx · ↑ <sent tokens> · ↓ <received tokens>

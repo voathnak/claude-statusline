@@ -54,7 +54,23 @@ You can also run it directly:
 ```sh
 ./scripts/install.sh          # install or upgrade
 ./scripts/install.sh --force  # reinstall / allow downgrade
+./scripts/install.sh --quiet  # errors only (what the auto-update hook uses)
 ```
+
+## Auto-update
+
+The plugin registers a `SessionStart` hook that runs the installer silently on
+every session start. The installer no-ops when the deployed script is already
+current, so the hook is effectively free — but the moment the plugin updates to
+a newer version, the footer script and `settings.json` block are re-deployed
+automatically. You only ever run `/statusline:install` once, at first install.
+
+To make the *plugin itself* update without manual steps, enable auto-update for
+this marketplace: `/plugin` → **Marketplaces** → `vk-statusline` → **Enable
+auto-update** (third-party marketplaces have it off by default). Claude Code
+then refreshes the marketplace and updates the plugin at session start, and the
+hook deploys the new footer on the next session. The hook never downgrades: if
+your deployed script is newer than the plugin's, it is left untouched.
 
 ## Context sidecar (interop with other tools)
 
