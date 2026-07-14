@@ -15,7 +15,7 @@ see also [claude-context-keeper](../claude-context-keeper), marketplace
 ## Add this marketplace
 
 ```
-/plugin marketplace add gitea.home.vlim.cc/vlim/claude-statusline
+/plugin marketplace add https://gitea.home.vlim.cc/vlim/claude-statusline.git
 ```
 
 Then install a plugin:
