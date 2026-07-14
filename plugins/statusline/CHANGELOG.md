@@ -4,6 +4,15 @@ All notable changes to the `statusline` plugin.
 Versions follow semver; the authoritative number lives in the `# version:` line
 at the top of `scripts/statusline.sh` and is mirrored in `plugin.json`.
 
+## 1.7.0
+- **Token totals split into four segments.** Line 2 now shows the cumulative
+  session usage as `↑ input · 💾 cache write · ↓ output · ⚡ cache read`
+  (previously `↑` lumped input + cache_creation + cache_read together).
+  Per-`message.id` dedup unchanged.
+- **👤 account segment moved to the end of line 2** (after the tokens),
+  decluttering line 1. Still read from `~/.claude.json`, still disabled with
+  `STATUSLINE_SHOW_ACCOUNT=0`.
+
 ## 1.6.0
 - **New: self-deploying footer (auto-update).** A `SessionStart` hook now runs
   the bundled installer silently (`install.sh --quiet`) on every session start:

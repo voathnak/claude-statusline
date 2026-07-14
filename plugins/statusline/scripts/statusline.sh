@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# version: 1.6.0
+# version: 1.7.0
 # Claude Code status line (two rows).
-# Line 1: v<ver> · <model> · ⚙ <effort> · 👤 <account email> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
-# Line 2: <N>% ctx · ↑ <sent tokens> · ↓ <received tokens>
+# Line 1: v<ver> · <model> · ⚙ <effort> · 5h: <left>% (⏳ <countdown>) · wk: <left>% · 📁 <cwd>
+# Line 2: <N>% ctx · ↑ <in> · 💾 <cache write> · ↓ <out> · ⚡ <cache read> · 👤 <account email>
 # (No $ cost: cost.total_cost_usd is an API-list-price estimate, not the actual
 #  bill on a team/subscription plan, so it is intentionally omitted.)
 # Path goes last because it varies in length and can grow; version goes first so
@@ -11,7 +11,8 @@
 #
 # Line 2 token totals are CUMULATIVE for the session, summed from the transcript
 # JSONL (the payload's context_window.* are current-context only since CC 2.1.132).
-# ↑ sent = input + cache_creation + cache_read ; ↓ received = output.
+# ↑ = input_tokens ; 💾 = cache_creation_input_tokens (written to cache) ;
+# ↓ = output_tokens ; ⚡ = cache_read_input_tokens (served from cache).
 # The transcript writes one line PER ASSISTANT CONTENT BLOCK, each repeating the
 # same message.id and usage — so totals are deduplicated by message.id (last
 # line wins) or a single API call would be counted once per block.
@@ -65,15 +66,16 @@ effort = (d.get("effort") or {}).get("level")
 if effort:
     parts.append("⚙ " + effort)
 
-# Active account (👤) — placed right before the 5h/weekly limits, which belong
-# to this account. cswap (claude-swap) users switch accounts often and forget
-# which one is live; the stdin payload carries no account info, but the email
-# of the active account lives in ~/.claude.json (oauthAccount.emailAddress),
-# which cswap swaps together with the OAuth tokens. Missing/corrupt file ->
-# segment omitted. Disable with STATUSLINE_SHOW_ACCOUNT=0. (macOS: a cswap
-# switch shows up once the ~30s Keychain credential cache expires.)
+# Active account (👤) — rendered at the END of line 2, after the token totals.
+# cswap (claude-swap) users switch accounts often and forget which one is live;
+# the stdin payload carries no account info, but the email of the active
+# account lives in ~/.claude.json (oauthAccount.emailAddress), which cswap
+# swaps together with the OAuth tokens. Missing/corrupt file -> segment
+# omitted. Disable with STATUSLINE_SHOW_ACCOUNT=0. (macOS: a cswap switch
+# shows up once the ~30s Keychain credential cache expires.)
 # NB: this whole Python program is a single-quoted shell string — no
 # apostrophes anywhere in it, comments included.
+account = None
 if os.environ.get("STATUSLINE_SHOW_ACCOUNT", "1") != "0":
     try:
         cfg_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~")
@@ -83,7 +85,7 @@ if os.environ.get("STATUSLINE_SHOW_ACCOUNT", "1") != "0":
         finally:
             cf.close()
         if email:
-            parts.append("👤 " + email)
+            account = "👤 " + email
     except Exception:
         pass
 
@@ -179,19 +181,23 @@ if tp and os.path.exists(tp):
                 if not u:
                     continue
                 per[m.get("id") or o.get("uuid")] = (
-                    u.get("input_tokens", 0)
-                    + u.get("cache_creation_input_tokens", 0)
-                    + u.get("cache_read_input_tokens", 0),
-                    u.get("output_tokens", 0))
+                    u.get("input_tokens", 0),
+                    u.get("cache_creation_input_tokens", 0),
+                    u.get("output_tokens", 0),
+                    u.get("cache_read_input_tokens", 0))
         finally:
             f.close()
     except Exception:
         per = {}
-    sent = sum(v[0] for v in per.values())
-    recv = sum(v[1] for v in per.values())
-    if sent or recv:
-        line2.append("↑ " + human(sent))
-        line2.append("↓ " + human(recv))
+    tin, cin, tout, cout = (sum(t) for t in zip(*per.values())) if per else (0, 0, 0, 0)
+    if tin or cin or tout or cout:
+        line2.append("↑ " + human(tin))
+        line2.append("💾 " + human(cin))
+        line2.append("↓ " + human(tout))
+        line2.append("⚡ " + human(cout))
+
+if account:
+    line2.append(account)
 
 out = " · ".join(parts)
 if line2:
