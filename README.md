@@ -12,21 +12,23 @@ see also [claude-context-keeper](../claude-context-keeper), marketplace
 | :----------- | :------ | :-------------------------------------------------------------------------- |
 | `statusline` | 1.6.0   | Two-line footer: model, effort, account email, 5h/weekly usage limits, cwd, context, tokens. Self-deploys on plugin update. |
 
-## Add this marketplace
+## Installation
 
-```
-/plugin marketplace add https://gitea.home.vlim.cc/vlim/claude-statusline.git
-```
+1. Add this marketplace:
 
-Then install a plugin:
+   ```
+   /plugin marketplace add https://github.com/voathnak/claude-statusline.git
+   ```
 
-```
-/plugin install statusline@vk-statusline
-```
+2. Install the plugin:
 
-After installing `statusline`, run `/statusline:install` once to wire the footer
-into `~/.claude/settings.json`, then open a new session. See
-[`plugins/statusline/README.md`](plugins/statusline/README.md) for details.
+   ```
+   /plugin install statusline@vk-statusline
+   ```
+
+3. Run `/statusline:install` once to wire the footer into
+   `~/.claude/settings.json`, then open a new session. See
+   [`plugins/statusline/README.md`](plugins/statusline/README.md) for details.
 
 ## Layout
 
